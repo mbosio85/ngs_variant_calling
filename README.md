@@ -50,6 +50,7 @@ The nf-core/nftest pipeline comes with documentation about the pipeline, found i
 
 ## Credits
 
+this pipeline is a remanagement of the nf-core/sarek and most credits are to be attributed to them
 nf-core/nftest was originally written by Mattia.
 
 ## Contributions and Support

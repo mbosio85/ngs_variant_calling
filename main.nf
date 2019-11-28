@@ -325,7 +325,7 @@ process GetSoftwareVersions {
     multiqc --version &> v_multiqc.txt 2>&1 || true
     qualimap --version &> v_qualimap.txt 2>&1 || true
     R --version &> v_r.txt  || true
-    R -e "library(ASCAT); help(package='ASCAT')" &> v_ascat.txt
+    # R -e "library(ASCAT); help(package='ASCAT')" &> v_ascat.txt
     samtools --version &> v_samtools.txt 2>&1 || true
     vcftools --version &> v_vcftools.txt 2>&1 || true
     vep --help &> v_vep.txt 2>&1 || true
@@ -1074,12 +1074,13 @@ vcfGenotypeGVCFs = vcfGenotypeGVCFs.groupTuple(by:[0, 1, 2])
 ==============================================================================================
 */
 
+
 /*
 ================================================================================
                                    ANNOTATION
 ================================================================================
 */
-
+/*
 if (step == 'annotate') {
     vcfToAnnotate = Channel.create()
     vcfNoAnnotate = Channel.create()
@@ -1087,12 +1088,12 @@ if (step == 'annotate') {
     if (tsvPath == []) {
     // Sarek, by default, annotates all available vcfs that it can find in the VariantCalling directory
     // Excluding vcfs from FreeBayes, and g.vcf from HaplotypeCaller
-    // Basically it's: VariantCalling/*/{HaplotypeCaller,Manta,Mutect2,Strelka,TIDDIT}/*.vcf.gz
+    // Basically it's: VariantCalling/*./{HaplotypeCaller,Manta,Mutect2,Strelka,TIDDIT}/*.vcf.gz
     // Without *SmallIndels.vcf.gz from Manta, and *.genome.vcf.gz from Strelka
     // The small snippet `vcf.minus(vcf.fileName)[-2]` catches idSample
     // This field is used to output final annotated VCFs in the correct directory
       Channel.empty().mix(
-        Channel.fromPath("${params.outdir}/VariantCalling/*/HaplotypeCaller/*.vcf.gz")
+        Channel.fromPath("${params.outdir}/VariantCalling/*./HaplotypeCaller/*.vcf.gz")
           .flatten().map{vcf -> ['haplotypecaller', vcf.minus(vcf.fileName)[-2].toString(), vcf]}
       ).choice(vcfToAnnotate, vcfNoAnnotate) {
         annotateTools == [] || (annotateTools != [] && it[0] in annotateTools) ? 0 : 1
@@ -1110,7 +1111,7 @@ if (step == 'annotate') {
 
 // as now have the list of VCFs to annotate, the first step is to annotate with allele frequencies, if there are any
 
-(vcfSnpeff, vcfVep) = vcfAnnotation.into(2)
+//(vcfSnpeff, vcfVep) = vcfAnnotation.into(2)
 
 vcfVep = vcfVep.map {
   variantCaller, idSample, vcf ->
@@ -1344,7 +1345,7 @@ process MultiQC {
         file ('FastQC/*') from fastQCReport.collect().ifEmpty([])
         file ('MarkDuplicates/*') from markDuplicatesReport.collect().ifEmpty([])
         file ('SamToolsStats/*') from samtoolsStatsReport.collect().ifEmpty([])
-        file ('snpEff/*') from snpeffReport.collect().ifEmpty([])
+        //file ('snpEff/*') from snpeffReport.collect().ifEmpty([])
 
     output:
         set file("*multiqc_report.html"), file("*multiqc_data") into multiQCOut
