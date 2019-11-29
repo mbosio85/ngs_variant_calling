@@ -1,6 +1,6 @@
 # ![nf-core/nftest](docs/images/nf-core-nftest_logo.png)
 
-read https://apeltzer.github.io/post/01-aws-nfcore/ for AWS
+read [this](https://apeltzer.github.io/post/01-aws-nfcore/) for AWS
 
 **test **.
 
