@@ -1,5 +1,7 @@
 # ![nf-core/nftest](docs/images/nf-core-nftest_logo.png)
 
+read https://apeltzer.github.io/post/01-aws-nfcore/ for AWS
+
 **test **.
 
 [![Build Status](https://travis-ci.com/nf-core/nftest.svg?branch=master)](https://travis-ci.com/nf-core/nftest)
