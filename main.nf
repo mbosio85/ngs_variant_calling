@@ -992,8 +992,10 @@ bamRecal = bamRecal.dump(tag:'BAM')
 
 bamHaplotypeCaller = bamRecalAllTemp.combine(intHaplotypeCaller)
 
-// STEP GATK HAPLOTYPECALLER.1
-
+/* STEP GATK HAPLOTYPECALLER.1
+ This one calls variant per each sample on the different 
+ intervals. One job per sample,interval pair
+ It outputs g.vcf files */
 process HaplotypeCaller {
     label 'memory_singleCPU_task_sq'
     label 'cpus_2'
@@ -1032,13 +1034,50 @@ gvcfHaplotypeCaller = gvcfHaplotypeCaller.groupTuple(by:[0, 1, 2])
 if (params.noGVCF) gvcfHaplotypeCaller.close()
 else gvcfHaplotypeCaller = gvcfHaplotypeCaller.dump(tag:'GVCF HaplotypeCaller')
 
-// STEP GATK HAPLOTYPECALLER.2
+vcfConcatenateVCFs = gvcfHaplotypeCaller
+vcfConcatenateVCFs = vcfConcatenateVCFs.dump(tag:'VCF to merge')
 
+
+process ConcatVCF {
+    label 'cpus_8'
+
+    tag {variantCaller + "-" + idSample}
+
+    publishDir "${params.outdir}/VariantCalling/${idSample}/${"$variantCaller"}", mode: params.publishDirMode
+
+    input:
+        set variantCaller, idPatient, idSample, file(vcFiles) from vcfConcatenateVCFs
+        file(fastaFai) from ch_fastaFai
+        file(targetBED) from ch_targetBED
+
+    output:
+    // we have this funny *_* pattern to avoid copying the raw calls to publishdir
+        set variantCaller, idPatient, idSample, file("*_*.vcf.gz"), file("*_*.vcf.gz.tbi") into vcfConcatenated
+
+    when: ('haplotypecaller' in tools )
+
+    script:
+    if (variantCaller == 'HaplotypeCallerGVCF') 
+      outputFile = "HaplotypeCaller_${idSample}.g.vcf"
+    
+    options = params.targetBED ? "-t ${targetBED}" : ""
+    """
+    concatenateVCFs.sh -i ${fastaFai} -c ${task.cpus} -o ${outputFile} ${options}
+    """
+}
+
+vcfConcatenated = vcfConcatenated.dump(tag:'VCF')
+
+
+// STEP GATK HAPLOTYPECALLER.2
+// this step should be included only if we want to  actually call variants on one 
+// sample only but normally we'd have cohort to play with.
+/*
 process GenotypeGVCFs {
     tag {idSample + "-" + intervalBed.baseName}
 
     input:
-        set idPatient, idSample, file(intervalBed), file(gvcf) from gvcfGenotypeGVCFs
+        set idPatient, idSample, file(intervalBed), file(gvcf) from merged_gvcf_ch
         file(dbsnp) from ch_dbsnp
         file(dbsnpIndex) from ch_dbsnpIndex
         file(dict) from ch_dict
@@ -1059,7 +1098,6 @@ process GenotypeGVCFs {
     gatk --java-options -Xmx${task.memory.toGiga()}g \
         GenotypeGVCFs \
         -R ${fasta} \
-        -L ${intervalBed} \
         -D ${dbsnp} \
         -V ${gvcf} \
         -O ${intervalBed.baseName}_${idSample}.vcf
@@ -1067,6 +1105,8 @@ process GenotypeGVCFs {
 }
 
 vcfGenotypeGVCFs = vcfGenotypeGVCFs.groupTuple(by:[0, 1, 2])
+*/
+
 
 /*
 ==============================================================================================
