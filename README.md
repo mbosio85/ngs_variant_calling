@@ -5,7 +5,7 @@ read [this](https://apeltzer.github.io/post/01-aws-nfcore/) for AWS
 **test **.
 
 [![Build Status](https://travis-ci.com/nf-core/nftest.svg?branch=master)](https://travis-ci.com/nf-core/nftest)
-[![Nextflow](https://img.shields.io/badge/nextflow-%E2%89%A50.32.0-brightgreen.svg)](https://www.nextflow.io/)
+[![Nextflow](https://img.shields.io/badge/nextflow-%E2%89%A519.04.0-brightgreen.svg)](https://www.nextflow.io/)
 
 [![install with bioconda](https://img.shields.io/badge/install%20with-bioconda-brightgreen.svg)](http://bioconda.github.io/)
 [![Docker](https://img.shields.io/docker/automated/nfcore/nftest.svg)](https://hub.docker.com/r/nfcore/nftest)

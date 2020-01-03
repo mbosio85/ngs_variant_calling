@@ -97,6 +97,9 @@ if (params.help) {
     exit 0
 }
 
+
+
+
 /*
  * SET UP CONFIGURATION VARIABLES
  */
@@ -131,6 +134,8 @@ if (!checkParameterList(annotateTools,annoList)) exit 1, 'Unknown tool(s) to ann
 // params.fasta has to be the first one
 params.fasta = params.genome && !('annotate' in step) ? params.genomes[params.genome].fasta ?: null : null
 // The rest can be sorted
+params.acLoci = params.genome && params.fasta && 'mapping' in step ? params.genomes[params.genome].acLoci ?: null : null
+params.acLociGC = params.genome && params.fasta && 'mapping' in step ? params.genomes[params.genome].acLociGC ?: null : null
 params.bwaIndex = params.genome && params.fasta && 'mapping' in step ? params.genomes[params.genome].bwaIndex ?: null : null
 params.chrDir = params.genome && 'controlfreec' in tools ? params.genomes[params.genome].chrDir ?: null : null
 params.chrLength = params.genome && 'controlfreec' in tools ? params.genomes[params.genome].chrLength ?: null : null
@@ -1585,7 +1590,7 @@ def checkHostname(){
 
 // Check if a row has the expected number of item
 def checkNumberOfItem(row, number) {
-    if (row.size() != number) exit 1, "Malformed row in TSV file: ${row}, see --help for more information"
+    if (row.size() != number) exit 1, "Malformed row in TSV file: ${row}, needed ${number} fields see --help for more information"
     return true
 }
 
