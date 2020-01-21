@@ -318,10 +318,10 @@ process GetSoftwareVersions {
     script:
     """
     bcftools version > v_bcftools.txt 2>&1 || true
+    vcftools -h | head -n2 | tail -n1 > v_vcftools.txt 2>&1 || true
     bwa &> v_bwa.txt 2>&1 || true
     echo "${workflow.manifest.version}" &> v_pipeline.txt 2>&1 || true
     echo "${workflow.nextflow.version}" &> v_nextflow.txt 2>&1 || true
-    echo "SNPEFF version"\$(snpEff -h 2>&1) > v_snpeff.txt
     fastqc --version > v_fastqc.txt 2>&1 || true
     gatk ApplyBQSR --help 2>&1 | grep Version: > v_gatk.txt 2>&1 || true
     multiqc --version &> v_multiqc.txt 2>&1 || true
@@ -1013,7 +1013,7 @@ process HaplotypeCaller {
     output:
         set val("HaplotypeCallerGVCF"), idPatient, idSample, file("${intervalBed.baseName}_${idSample}.g.vcf") into gvcfHaplotypeCaller
         set idPatient, idSample, file(intervalBed), file("${intervalBed.baseName}_${idSample}.g.vcf"), 
-            file("${intervalBed.baseName}_${idSample}.bam",file("${intervalBed.baseName}_${idSample}.bai") into gvcfGenotypeGVCFs
+            file("${intervalBed.baseName}_${idSample}.bam"),file("${intervalBed.baseName}_${idSample}.bai") into gvcfGenotypeGVCFs
 
     when: 'haplotypecaller' in tools
 
@@ -1090,8 +1090,8 @@ process GenotypeGVCFs {
         file(fastaFai) from ch_fastaFai
 
     output:
-    set  idPatient, idSample,file(intervalBed), file("${intervalBed.baseName}_${idSample}.vcf",
-         file("${intervalBed.baseName}_${idSample}.bam",file("${intervalBed.baseName}_${idSample}.bai") into vcfGenotypeVCFs
+    set  idPatient, idSample,file(intervalBed), file("${intervalBed.baseName}_${idSample}.vcf"),
+         file("${intervalBed.baseName}_${idSample}.bam"),file("${intervalBed.baseName}_${idSample}.bai") into vcfGenotypeVCFs
 
     when: 'haplotypecaller' in tools
 
@@ -1161,7 +1161,7 @@ vcfCNNvcfs = vcfCNNvcfs.groupTuple(by:[0, 1, 2])
 //concatenate the VCFs from the single intervals
 process ConcatCNNVCF {
     label 'cpus_8'
-    tag {variantCaller + "CNN_concat-" + idSample}
+    tag {idSample + "CNN_concat-" + name }
 
     input:
         set idPatient, idSample, file(cnnFile) from vcfCNNvcfs
@@ -1170,7 +1170,7 @@ process ConcatCNNVCF {
 
     output:
     // we have this funny *_* pattern to avoid copying the raw calls to publishdir
-        "HaplotypeCaller_${idSample}.vcf" into concatCNNvcf
+        file("HaplotypeCaller_${idSample}.vcf") into concatCNNvcf
     
     when: ('haplotypecaller' in tools )
 
@@ -1204,8 +1204,8 @@ process FilterVariantTrances{
         file(millsIndex) from ch_millsIndex
 
     output:
-        "HaplotypeCaller_${idSample}.CNN_filtered.vcf.gz" into finalCNNvcf
-        "HaplotypeCaller_${idSample}.CNN_filtered.vcf.gz.tbi" into finalCNNvcf
+        file("HaplotypeCaller_${idSample}.CNN_filtered.vcf.gz") into finalCNNvcf
+        file("HaplotypeCaller_${idSample}.CNN_filtered.vcf.gz.tbi") into finalCNNvcfIndex
 
    when: ('haplotypecaller' in tools )
 
@@ -1243,14 +1243,6 @@ process FilterVariantTrances{
 
 
 
-
-
-
-
-==============================================================================================
-   MISSING VCF QUALITY CHECK : TODO
-==============================================================================================
-*/
 
 
 
