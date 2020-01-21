@@ -43,11 +43,11 @@ def helpMessage() {
                                     Available: conda, docker, singularity, awsbatch, test and more.
 
     Options:
-        --genome                    Name of iGenomes reference
+        --genome                    Name of iGenomes CNN
         --noGVCF                    No g.vcf output from HaplotypeCaller
         --targetBED                 Target BED file for targeted or whole exome sequencing
         --step                      Specify starting step
-                                    Available: Mapping, Recalibrate, VariantCalling, CNNfilter
+                                    Available: Mapping, Recalibrate, VariantCalling
                                     Default: Mapping
         --tools                     Specify tools to use for variant calling:
                                     Available: HaplotypeCaller
@@ -129,7 +129,7 @@ params.acLociGC = params.genome && params.fasta && 'mapping' in step ? params.ge
 params.bwaIndex = params.genome && params.fasta && 'mapping' in step ? params.genomes[params.genome].bwaIndex ?: null : null
 params.chrDir = params.genome && 'controlfreec' in tools ? params.genomes[params.genome].chrDir ?: null : null
 params.chrLength = params.genome && 'controlfreec' in tools ? params.genomes[params.genome].chrLength ?: null : null
-params.dbsnp = params.genome && ('mapping' in step || 'controlfreec' in tools || 'haplotypecaller' in tools || 'mutect2' in tools) ? params.genomes[params.genome].dbsnp ?: null : null
+params.dbsnp = params.genome && ('mapping' in step ||'haplotypecaller' in tools ) ? params.genomes[params.genome].dbsnp ?: null : null
 params.dbsnpIndex = params.genome && params.dbsnp ? params.genomes[params.genome].dbsnpIndex ?: null : null
 params.dict = params.genome && params.fasta ? params.genomes[params.genome].dict ?: null : null
 params.fastaFai = params.genome && params.fasta ? params.genomes[params.genome].fastaFai ?: null : null
@@ -138,8 +138,16 @@ params.germlineResourceIndex = params.genome && params.germlineResource ? params
 params.intervals = params.genome && !('annotate' in step) ? params.genomes[params.genome].intervals ?: null : null
 params.knownIndels = params.genome && 'mapping' in step ? params.genomes[params.genome].knownIndels ?: null : null
 params.knownIndelsIndex = params.genome && params.knownIndels ? params.genomes[params.genome].knownIndelsIndex ?: null : null
-params.snpeffDb = params.genome && 'snpeff' in tools ? params.genomes[params.genome].snpeffDb ?: null : null
-params.vepCacheVersion = params.genome && 'vep' in tools ? params.genomes[params.genome].vepCacheVersion ?: null : null
+//params.snpeffDb = params.genome && 'snpeff' in tools ? params.genomes[params.genome].snpeffDb ?: null : null
+//params.vepCacheVersion = params.genome && 'vep' in tools ? params.genomes[params.genome].vepCacheVersion ?: null : null
+params.hapmap       = params.genome && ('mapping' in step ||'haplotypecaller' in tools ) ?params.genomes[params.genome].hapmap ?: null : null
+params.hapmapIndex  = params.genome && ('mapping' in step ||'haplotypecaller' in tools ) ?params.genomes[params.genome].hapmapIndex ?: null : null
+params.onekg        = params.genome && ('mapping' in step ||'haplotypecaller' in tools ) ?params.genomes[params.genome].onekg ?: null : null
+params.onekgIndex   = params.genome && ('mapping' in step ||'haplotypecaller' in tools ) ?params.genomes[params.genome].onekgIndex ?: null : null
+params.mills        = params.genome && ('mapping' in step ||'haplotypecaller' in tools ) ?params.genomes[params.genome].mills ?: null : null
+params.millsIndex   = params.genome && ('mapping' in step ||'haplotypecaller' in tools ) ? params.genomes[params.genome].millsIndex ?: null : null
+
+
 
 // Has the run name been specified by the user?
 // This has the bonus effect of catching both -name and --name
@@ -176,7 +184,6 @@ if (tsvPath) {
         case 'mapping': inputSample = extractFastq(tsvFile); break
         case 'recalibrate': inputSample = extractRecal(tsvFile); break
         case 'variantcalling': inputSample = extractBam(tsvFile); break
-        case 'CNNfilter' : inputSample = extractBam(tsvFile); break
         default: exit 1, "Unknown step ${step}"
     }
 } else if (params.input && !hasExtension(params.input, "tsv")) {
@@ -203,7 +210,7 @@ ch_acLoci = params.acLoci && 'ascat' in tools ? Channel.value(file(params.acLoci
 ch_acLociGC = params.acLociGC && 'ascat' in tools ? Channel.value(file(params.acLociGC)) : "null"
 ch_chrDir = params.chrDir && 'controlfreec' in tools ? Channel.value(file(params.chrDir)) : "null"
 ch_chrLength = params.chrLength && 'controlfreec' in tools ? Channel.value(file(params.chrLength)) : "null"
-ch_dbsnp = params.dbsnp && ('mapping' in step || 'controlfreec' in tools || 'haplotypecaller' in tools || 'mutect2' in tools) ? Channel.value(file(params.dbsnp)) : "null"
+ch_dbsnp = params.dbsnp && ('mapping' in step  || 'haplotypecaller' in tools ) ? Channel.value(file(params.dbsnp)) : "null"
 ch_fasta = params.fasta  ? Channel.value(file(params.fasta)) : "null"
 ch_fastaFai = params.fastaFai  ? Channel.value(file(params.fastaFai)) : "null"
 ch_germlineResource = params.germlineResource && 'mutect2' in tools ? Channel.value(file(params.germlineResource)) : "null"
@@ -214,10 +221,6 @@ li_knownIndels = []
 if (params.knownIndels && ('mapping' in step)) params.knownIndels.each { li_knownIndels.add(file(it)) }
 ch_knownIndels = params.knownIndels && params.genome == 'smallGRCh37' ? Channel.value(li_knownIndels.collect()) : params.knownIndels ? Channel.value(file(params.knownIndels)) : "null"
 
-ch_snpEff_cache = params.snpEff_cache ? Channel.value(file(params.snpEff_cache)) : "null"
-ch_snpeffDb = params.snpeffDb ? Channel.value(params.snpeffDb) : "null"
-ch_vepCacheVersion = params.vepCacheVersion ? Channel.value(params.vepCacheVersion) : "null"
-ch_vep_cache = params.vep_cache ? Channel.value(file(params.vep_cache)) : "null"
 
 // Optional files, not defined within the params.genomes[params.genome] scope
 ch_cadd_InDels = params.cadd_InDels ? Channel.value(file(params.cadd_InDels)) : "null"
@@ -227,6 +230,13 @@ ch_cadd_WG_SNVs_tbi = params.cadd_WG_SNVs_tbi ? Channel.value(file(params.cadd_W
 ch_pon = params.pon ? Channel.value(file(params.pon)) : "null"
 ch_targetBED = params.targetBED ? Channel.value(file(params.targetBED)) : "null"
 
+// CNN filtering resources
+ch_hapmap = params.hapmap && ('mapping' in step  || 'haplotypecaller' in tools ) ? Channel.value(file(params.hapmap)) : "null"
+ch_hapmapIndex = params.hapmapIndex && ('mapping' in step  || 'haplotypecaller' in tools ) ? Channel.value(file(params.hapmapIndex)) : "null"
+ch_onekg = params.onekg && ('mapping' in step  || 'haplotypecaller' in tools ) ? Channel.value(file(params.onekg)) : "null"
+ch_onekgIndex = params.onekgIndex && ('mapping' in step  || 'haplotypecaller' in tools ) ? Channel.value(file(params.onekgIndex)) : "null"
+ch_mills = params.mills && ('mapping' in step  || 'haplotypecaller' in tools ) ? Channel.value(file(params.mills)) : "null"
+ch_millsIndex = params.millsIndex&& ('mapping' in step  || 'haplotypecaller' in tools ) ? Channel.value(file(params.millsIndex)) : "null"
 /*
 ================================================================================
                                 PRINTING SUMMARY
@@ -1002,7 +1012,8 @@ process HaplotypeCaller {
 
     output:
         set val("HaplotypeCallerGVCF"), idPatient, idSample, file("${intervalBed.baseName}_${idSample}.g.vcf") into gvcfHaplotypeCaller
-        set idPatient, idSample, file(intervalBed), file("${intervalBed.baseName}_${idSample}.g.vcf") into gvcfGenotypeGVCFs
+        set idPatient, idSample, file(intervalBed), file("${intervalBed.baseName}_${idSample}.g.vcf"), 
+            file("${intervalBed.baseName}_${idSample}.bam",file("${intervalBed.baseName}_${idSample}.bai") into gvcfGenotypeGVCFs
 
     when: 'haplotypecaller' in tools
 
@@ -1015,11 +1026,13 @@ process HaplotypeCaller {
         -L ${intervalBed} \
         -D ${dbsnp} \
         -O ${intervalBed.baseName}_${idSample}.g.vcf \
+        -bamout ${intervalBed.baseName}_${idSample}.bam \
         -ERC GVCF
     """
 }
 
 gvcfHaplotypeCaller = gvcfHaplotypeCaller.groupTuple(by:[0, 1, 2])
+gvcfGenotypeGVCFs   = gvcfGenotypeGVCFs.groupTuple(by:[0, 1, 2])
 
 if (params.noGVCF) gvcfHaplotypeCaller.close()
 else gvcfHaplotypeCaller = gvcfHaplotypeCaller.dump(tag:'GVCF HaplotypeCaller')
@@ -1059,15 +1072,17 @@ process ConcatVCF {
 vcfConcatenated = vcfConcatenated.dump(tag:'VCF')
 
 
-// STEP GATK HAPLOTYPECALLER.2
-// this step should be included only if we want to  actually call variants on one 
-// sample only but normally we'd have cohort to play with.
-/*
+// STEP CNN GATK calling 
+// This step we generate VCFs from gVCF to score with CNN algorithm
+
 process GenotypeGVCFs {
+    label 'memory_singleCPU_task_sq'
+    label 'cpus_2'
+
     tag {idSample + "-" + intervalBed.baseName}
 
     input:
-        set idPatient, idSample, file(intervalBed), file(gvcf) from merged_gvcf_ch
+        set idPatient, idSample, file(intervalBed), file(gvcf), file(bam), file(bamidx) from gvcfGenotypeGVCFs
         file(dbsnp) from ch_dbsnp
         file(dbsnpIndex) from ch_dbsnpIndex
         file(dict) from ch_dict
@@ -1075,7 +1090,8 @@ process GenotypeGVCFs {
         file(fastaFai) from ch_fastaFai
 
     output:
-    set val("HaplotypeCaller"), idPatient, idSample, file("${intervalBed.baseName}_${idSample}.vcf") into vcfGenotypeGVCFs
+    set  idPatient, idSample,file(intervalBed), file("${intervalBed.baseName}_${idSample}.vcf",
+         file("${intervalBed.baseName}_${idSample}.bam",file("${intervalBed.baseName}_${idSample}.bai") into vcfGenotypeVCFs
 
     when: 'haplotypecaller' in tools
 
@@ -1090,15 +1106,147 @@ process GenotypeGVCFs {
         -R ${fasta} \
         -D ${dbsnp} \
         -V ${gvcf} \
+         -L ${intervalBed} \
         -O ${intervalBed.baseName}_${idSample}.vcf
     """
 }
 
-vcfGenotypeGVCFs = vcfGenotypeGVCFs.groupTuple(by:[0, 1, 2])
-*/
+vcfGenotypeVCFs = vcfGenotypeVCFs.groupTuple(by:[0, 1, 2])
 
 
-/*
+
+process CNN_scoring {
+    label 'memory_singleCPU_task_sq'
+    label 'cpus_8'
+    
+    tag {idSample + "CNN-" + intervalBed.baseName}
+
+    input:
+        set idPatient, idSample, file(intervalBed), file(vcf), file(bam), file(bamidx) from vcfGenotypeVCFs
+        file(dbsnp) from ch_dbsnp
+        file(dbsnpIndex) from ch_dbsnpIndex
+        file(dict) from ch_dict
+        file(fasta) from ch_fasta
+        file(fastaFai) from ch_fastaFai
+        
+
+    output:
+    set  idPatient, idSample, file("${intervalBed.baseName}_${idSample}.cnn_annotated.vcf.gz") into vcfCNNvcfs
+
+    when: 'haplotypecaller' in tools
+
+    script:
+    // Using -L is important for speed and we have to index the interval files also
+    """
+    gatk --java-options -Xmx${task.memory.toGiga()}g \
+        IndexFeatureFile -F ${vcf}
+
+    gatk --java-options -Xmx${task.memory.toGiga()}g \
+        CNNScoreVariants \
+        -R ${fasta} \
+        -V ${vcf} \
+        -L ${intervalBed} \
+        -O ${intervalBed.baseName}_${idSample}.cnn_annotated.vcf.gz
+        -I ${bam} \
+        --architecture CNN_2D \
+        --tensor_type read_tensor \
+        --transfer-batch-size 32
+        --inference-batch-size 8 
+        --intra-op-threads 0 \
+        --inter-op-threads ${task.cpus} \
+    """
+}
+vcfCNNvcfs = vcfCNNvcfs.groupTuple(by:[0, 1, 2])
+
+//concatenate the VCFs from the single intervals
+process ConcatCNNVCF {
+    label 'cpus_8'
+    tag {variantCaller + "CNN_concat-" + idSample}
+
+    input:
+        set idPatient, idSample, file(cnnFile) from vcfCNNvcfs
+        file(fastaFai) from ch_fastaFai
+        file(targetBED) from ch_targetBED
+
+    output:
+    // we have this funny *_* pattern to avoid copying the raw calls to publishdir
+        "HaplotypeCaller_${idSample}.vcf" into concatCNNvcf
+    
+    when: ('haplotypecaller' in tools )
+
+    script:
+      outputFile = "HaplotypeCaller_${idSample}.vcf"
+    
+    options = params.targetBED ? "-t ${targetBED}" : ""
+    """
+    concatenateVCFs.sh -i ${fastaFai} -c ${task.cpus} -o ${outputFile} ${options}
+    """
+}
+
+//Now score the variants using the CNN model 
+// Details from : https://github.com/gatk-workflows/gatk4-cnn-variant-filter/
+
+process FilterVariantTrances{
+    label 'cpus_8'
+        tag {variantCaller + "CNN_Filter-" + idSample}
+        publishDir "${params.outdir}/VariantCalling/${idSample}/CNNFiltering/", mode: params.publishDirMode
+                
+    input :
+        file(vcf) from concatCNNvcf
+        file(dict) from ch_dict
+        file(fasta) from ch_fasta
+        file(fastaFai) from ch_fastaFai
+        file(hapmap) from ch_hapmap
+        file(hapmapIndex) from ch_hapmapIndex
+        file(onekg) from ch_onekg
+        file(onekgIndex) from ch_onekgIndex
+        file(mills) from ch_mills
+        file(millsIndex) from ch_millsIndex
+
+    output:
+        "HaplotypeCaller_${idSample}.CNN_filtered.vcf.gz" into finalCNNvcf
+        "HaplotypeCaller_${idSample}.CNN_filtered.vcf.gz.tbi" into finalCNNvcf
+
+   when: ('haplotypecaller' in tools )
+
+
+        script:
+        """
+            gatk --java-options -Xmx${task.memory.toGiga()}g \
+        IndexFeatureFile -F ${vcf}
+
+
+        gatk --java-options "-Xmx${task.memory.toGiga}g" \
+        FilterVariantTranches \
+        -V ${vcf} \
+        --output HaplotypeCaller_${idSample}.CNN_filtered.vcf \
+        -resource ${hapmap}   \
+        -resource ${onekg}    \
+        -resource ${mills}    \
+        -info-key ${info_key} \
+        --snp-tranche 99.9    \
+        --indel-tranche 99.5  \
+        --dont-trim-active-regions \
+        -stand-call-conf 0   \
+        -A Coverage -A ChromosomeCounts \
+        -A BaseQuality -A FragmentLength \
+        -A MappingQuality -A ReadPosition 
+        
+
+        bgzip HaplotypeCaller_${idSample}.CNN_filtered.vcf
+        tabix HaplotypeCaller_${idSample}.CNN_filtered.vcf.gz
+
+        """
+
+
+}
+
+
+
+
+
+
+
 ==============================================================================================
    MISSING VCF QUALITY CHECK : TODO
 ==============================================================================================
