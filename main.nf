@@ -1275,13 +1275,14 @@ process MultiQC {
         
 
     output:
-        set file("*multiqc_report.html"), file("*multiqc_data") into multiQCOut
+        set file("${params.name}/*multiqc_report.html"), file("${params.name}/*multiqc_data") into multiQCOut
 
     when: !('multiqc' in skipQC)
 
     script:
     """
-    multiqc -f -v .
+    mkdir -p ${name}
+    multiqc -f -v -outdir ${name} .
     """
 }
 
