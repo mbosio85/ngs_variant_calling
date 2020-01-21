@@ -12,8 +12,6 @@
 * [Main arguments](#main-arguments)
   * [`-profile`](#-profile)
   * [`--input`](#--input)
-  * [`--sample`](#--sample)
-  * [`--sampleDir`](#--sampledir)
   * [`--annotateVCF`](#--annotatevcf)
   * [`--noGVCF`](#--nogvcf)
   * [`--skipQC`](#--skipqc)
@@ -21,7 +19,6 @@
   * [`--nucleotidesPerSecond`](#--nucleotidespersecond)
   * [`--step`](#--step)
   * [`--tools`](#--tools)
-  * [`--noStrelkaBP`](#--nostrelkabp)
   * [`--targetBED`](#--targetbed)
 * [Reference genomes](#reference-genomes)
   * [`--genome` (using iGenomes)](#--genome-using-igenomes)
@@ -40,8 +37,6 @@
   * [`--knownIndels`](#--knownindels)
   * [`--knownIndelsIndex`](#--knownindelsindex)
   * [`--pon`](#--pon)
-  * [`--snpeffDb`](#--snpeffdb)
-  * [`--vepCacheVersion`](#--vepcacheversion)
   * [`--igenomesIgnore`](#--igenomesignore)
 * [Job resources](#job-resources)
   * [Automatic resubmission](#automatic-resubmission)
@@ -85,7 +80,7 @@ NXF_OPTS='-Xms1g -Xmx4g'
 The typical command for running the pipeline is as follows:
 
 ```bash
-nextflow run nf-core/sarek --input sample.tsv -profile docker
+nextflow run ngs_variant_calling --input sample.tsv -profile docker
 ```
 
 This will launch the pipeline with the `docker` configuration profile.
@@ -102,17 +97,7 @@ results         # Finished results (configurable, see below)
 
 The nf-core/varcall pipeline comes with more documentation about running the pipeline, found in the `docs/` directory:
     * [Extra Documentation on variant calling](docs/variantcalling.md)
-    * [Extra Documentation on annotation](docs/annotation.md)
-
-### Updating the pipeline
-
-When you run the above command, Nextflow automatically pulls the pipeline code from GitHub and stores it as a cached version.
-When running the pipeline after this, it will always use the cached version if available - even if the pipeline has been updated since.
-To make sure that you're running the latest version of the pipeline, make sure that you regularly update the cached version of the pipeline:
-
-```bash
-nextflow pull nf-core/varcall [TODO]
-```
+    
 
 ### Reproducibility
 
@@ -120,10 +105,7 @@ It's a good idea to specify a pipeline version when running the pipeline on your
 This ensures that a specific version of the pipeline code and software are used when you run your pipeline.
 If you keep using the same tag, you'll be running the same version of the pipeline, even if there have been changes to the code since.
 
-First, go to the [nf-core/sarek releases page](https://github.com/nf-core/sarek/releases) and find the latest version number - numeric only (eg. `2.5.0`).
-Then specify this when running the pipeline with `-r` (one hyphen) - eg. `-r 2.5.0`.
 
-This version number will be logged in reports when you run the pipeline, so that you'll know what you used when you look back in the future.
 
 ## Main arguments
 
@@ -177,36 +159,8 @@ For example:
 
 Multiple VCF files can be specified if the path must be enclosed in quotes
 
-### `--sample`
-
-> :warning: This params is deprecated -- it will be removed in a future release.
-> Please check: [`--input`](#--input)
-
-Use this to specify the location of your input TSV file, on `mapping`, `recalibrate` and `variantcalling` steps.
-For example:
-
-```bash
---sample sample.tsv
 ```
 
-Multiple TSV files can be specified if the path must be enclosed in quotes
-
-Use this to specify the location to a directory on `mapping` step with a single germline sample only.
-For example:
-
-```bash
---sample PathToDirectory
-```
-
-Use this to specify the location of your VCF input file on `annotate` step.
-For example:
-
-```bash
---sample sample.vcf
-```
-
-
-Multiple VCF files can be specified if the path must be enclosed in quotes
 
 ### `--noGVCF`
 
@@ -227,16 +181,12 @@ Use this to estimate of how many seconds it will take to call variants on any in
 
 Use this to specify the starting step:
 Default `mapping`
-Available: `mapping`, `recalibrate`, `variantcalling` and `annotate`
+Available: `mapping`, `recalibrate`, `variantcalling` 
 
 ### `--tools`
 
 Use this to specify the tools to run:
-Available: `ASCAT`, `ControlFREEC`, `FreeBayes`, `HaplotypeCaller`, `Manta`, `mpileup`, `MuTect2`, `Strelka`, `TIDDIT`
-
-### `--noStrelkaBP`
-
-Use this not to use `Manta` `candidateSmallIndels` for `Strelka` as Best Practice.
+Available:  `HaplotypeCaller`
 
 ### `--targetBED`
 
@@ -246,6 +196,7 @@ Use this to specify the target BED file for targeted or whole exome sequencing.
 
 The pipeline config files come bundled with paths to the illumina iGenomes reference index files.
 If running with docker or AWS, the configuration is set up to use the [AWS-iGenomes](https://ewels.github.io/AWS-iGenomes/) resource.
+
 
 ### `--genome` (using iGenomes)
 
@@ -277,8 +228,13 @@ params {
       intervals        = '<path to the intervals file>'
       knownIndels      = '<path to the knownIndels file>'
       knownIndelsIndex = '<path to the knownIndels index>'
-      snpeffDb         = '<version of the snpEff DB>'
-      vepCacheVersion  = '<version of the VEP cache>'
+      hapmap           = '<path to the hapmap index>'
+      hapmapIndex      = '<path to the hapmapIndex index>'
+      onekg            = '<path to the onekg index>'
+      onekgIndex       = '<path to the onekgIndex index>'
+      mills            = '<path to the mills index>'
+      millsIndex       = '<path to the millsIndex index>'
+
     }
     // Any number of additional genomes, key is used with --genome
   }
@@ -350,38 +306,6 @@ If you prefer, you can specify the full path to your reference genome when you r
 --fastaFai '[path to the reference index]'
 ```
 
-### `--genomeDict`
-
-> :warning: This params is deprecated -- it will be removed in a future release.
-> Please check: [`--dict`](#--dict)
-
-If you prefer, you can specify the full path to your reference genome when you run the pipeline:
-
-```bash
---dict '[path to the dict file]'
-```
-
-### `--genomeFile`
-
-> :warning: This params is deprecated -- it will be removed in a future release.
-> Please check: [`--fasta`](#--fasta)
-
-If you prefer, you can specify the full path to your reference genome when you run the pipeline:
-
-```bash
---fasta '[path to the reference fasta file]'
-```
-
-### `--genomeIndex`
-
-> :warning: This params is deprecated -- it will be removed in a future release.
-> Please check: [`--fastaFai`](#--fastaFai)
-
-If you prefer, you can specify the full path to your reference genome when you run the pipeline:
-
-```bash
---fastaFai '[path to the reference index]'
-```
 
 ### `--germlineResource`
 
@@ -427,36 +351,6 @@ If you prefer, you can specify the full path to your reference genome when you r
 --knownIndelsIndex '[path to the knownIndels index]'
 ```
 
-### `--pon`
-
-When a panel of normals [PON](https://gatkforums.broadinstitute.org/gatk/discussion/24057/how-to-call-somatic-mutations-using-gatk4-mutect2#latest) is defined, you will get filtered somatic calls as a result.
-Without PON, there will be no calls with PASS in the INFO field, only an _unfiltered_ VCF is written.
-It is recommended to make your own panel-of-normals, as it depends on sequencer and library preparation.
-For tests in iGenomes there is a dummy PON file in the Annotation/GermlineResource directory, but it _should not be used_ as a real panel-of-normals file.
-Provide your PON by:
-
-```bash
---pon '[path to the PON VCF]'
-```
-
-If the PON file is bgzipped, there has to be a tabixed index file at the same directory.
-
-### `--snpeffDb`
-
-If you prefer, you can specify the DB version when you run the pipeline:
-
-```bash
---snpeffDb '[version of the snpEff DB]'
-```
-
-### `--vepCacheVersion`
-
-If you prefer, you can specify the cache version when you run the pipeline:
-
-```bash
---vepCacheVersion '[version of the VEP cache]'
-```
-
 ### `--igenomesIgnore`
 
 Do not load `igenomes.config` when running the pipeline.
@@ -469,17 +363,6 @@ You may choose this option if you observe clashes between custom parameters and 
 Each step in the pipeline has a default set of requirements for number of CPUs, memory and time.
 For most of the steps in the pipeline, if the job exits with an error code of `143` (exceeded requested resources) it will automatically resubmit with higher requests (2 x original, then 3 x original).
 If it still fails after three times then the pipeline is stopped.
-
-### Custom resource requests
-
-Wherever process-specific requirements are set in the pipeline, the default value can be changed by creating a custom config file.
-See the files hosted at [`nf-core/configs`](https://github.com/nf-core/configs/tree/master/conf) for examples.
-
-If you are likely to be running `nf-core` pipelines regularly it may be a good idea to request that your custom config file is uploaded to the `nf-core/configs` git repository.
-Before you do this please can you test that the config file works with your pipeline of choice using the `-c` parameter (see definition below).
-You can then create a pull request to the `nf-core/configs` repository with the addition of your config file, associated documentation file (see examples in [`nf-core/configs/docs`](https://github.com/nf-core/configs/tree/master/docs)), and amending [`nfcore_custom.config`](https://github.com/nf-core/configs/blob/master/nfcore_custom.config) to include your custom profile.
-
-If you have any questions or issues please send us a message on [Slack](https://nf-core-invite.herokuapp.com/).
 
 ## AWS Batch specific parameters
 
@@ -530,7 +413,7 @@ Nextflow will used cached results from any pipeline steps where the inputs are t
 You can also supply a run name to resume a specific run: `-resume [run-name]`.
 Use the `nextflow log` command to show previous run names.
 
-**NB:** Single hyphen (core Nextflow option)
+**NB:** Single hyphen (core Nextflow option)  <-- Problematic for tower-resume use because the name must be unique 
 
 ### `-c`
 
@@ -539,39 +422,6 @@ Specify the path to a specific config file (this is a core NextFlow command).
 **NB:** Single hyphen (core Nextflow option)
 
 Note - you can use this to override pipeline defaults.
-
-### `--custom_config_version`
-
-Provide git commit id for custom Institutional configs hosted at `nf-core/configs`.
-This was implemented for reproducibility purposes.
-Default is set to `master`.
-
-```bash
-## Download and use config file with following git commid id
---custom_config_version d52db660777c4bf36546ddb188ec530c3ada1b96
-```
-
-### `--custom_config_base`
-
-If you're running offline, nextflow will not be able to fetch the institutional config files
-from the internet.
-If you don't need them, then this is not a problem.
-If you do need them, you should download the files from the repo and tell nextflow where to find them with the `custom_config_base` option.
-For example:
-
-```bash
-## Download and unzip the config files
-cd /path/to/my/configs
-wget https://github.com/nf-core/configs/archive/master.zip
-unzip master.zip
-
-## Run the pipeline
-cd /path/to/my/data
-nextflow run /path/to/pipeline/ --custom_config_base /path/to/my/configs/configs-master/
-```
-
-> Note that the nf-core/tools helper package has a `download` command to download all required pipeline
-> files + singularity containers + institutional configs in one go for you, to make this process easier.
 
 ### `--max_memory`
 

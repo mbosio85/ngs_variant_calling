@@ -23,21 +23,25 @@ ii. Install one of [`docker`](https://docs.docker.com/engine/installation/), [`s
 iii. Download the pipeline and test it on a minimal dataset with a single command
 
 ```bash
-nextflow run nf-core/nftest -profile test,<docker/singularity/conda>
+nextflow run ./  -profile test,<docker/singularity/conda>
 ```
 
 iv. Start running your own analysis!
 
-<!-- TODO nf-core: Update the default command above used to run the pipeline -->
 ```bash
-nextflow run nf-core/nftest -profile <docker/singularity/conda> --reads '*_R{1,2}.fastq.gz' --genome GRCh37
+    nextflow run /nfs/code/ngs_variant_calling \
+    --input input.tsv \
+    --step <align,variantcalling> \
+    --tools HaplotypeCaller \  # If variantcalling 
+    --genome GRCh38 \
+    -profile docker \
 ```
 
 See [usage docs](docs/usage.md) for all of the available options when running the pipeline.
 
 ## Documentation
 
-The nf-core/nftest pipeline comes with documentation about the pipeline, found in the `docs/` directory:
+The stalicla/ngs_variant_calling pipeline comes with documentation about the pipeline, found in the `docs/` directory:
 
 1. [Installation](https://nf-co.re/usage/installation)
 2. Pipeline configuration
@@ -52,8 +56,8 @@ The nf-core/nftest pipeline comes with documentation about the pipeline, found i
 
 ## Credits
 
-this pipeline is a remanagement of the nf-core/sarek and most credits are to be attributed to them
-nf-core/nftest was originally written by Mattia.
+This pipeline combines a subset of nf-core/Sarek pipeline with extra steps from GATK CNNFilterVariants
+
 
 ## Contributions and Support
 
@@ -62,9 +66,6 @@ If you would like to contribute to this pipeline, please see the [contributing g
 For further information or help, don't hesitate to get in touch on [Slack](https://nfcore.slack.com/channels/nf-core/nftest) (you can join with [this invite](https://nf-co.re/join/slack)).
 
 ## Citation
-
-<!-- TODO nf-core: Add citation for pipeline after first release. Uncomment lines below and update Zenodo doi. -->
-<!-- If you use  nf-core/nftest for your analysis, please cite it using the following doi: [10.5281/zenodo.XXXXXX](https://doi.org/10.5281/zenodo.XXXXXX) -->
 
 You can cite the `nf-core` pre-print as follows:  
 Ewels PA, Peltzer A, Fillinger S, Alneberg JA, Patel H, Wilm A, Garcia MU, Di Tommaso P, Nahnsen S. **nf-core: Community curated bioinformatics pipelines**. *bioRxiv*. 2019. p. 610741. [doi: 10.1101/610741](https://www.biorxiv.org/content/10.1101/610741v1).

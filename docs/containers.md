@@ -35,18 +35,6 @@ For annotation, the main container can be used, but the cache has to be download
 - Contain **[VCFtools](https://vcftools.github.io/index.html)** 0.1.16
 - Contain **[VEP](https://github.com/Ensembl/ensembl-vep)** 95.2
 
-### sareksnpeff [![sareksnpeff-docker status](https://img.shields.io/docker/automated/nfcore/sareksnpeff.svg)](https://hub.docker.com/r/nfcore/sareksnpeff)
-
-- Based on `nfcore/base:latest`
-- Contain **[snpEff](http://snpeff.sourceforge.net/)** 4.3.1t
-- Contains cache for `GRCh37`, `GRCh38`, `GRCm38` or `CanFam3.1`
-
-### sarekvep [![sarekvep-docker status](https://img.shields.io/docker/automated/nfcore/sarekvep.svg)](https://hub.docker.com/r/nfcore/sarekvep)
-
-- Based on `nfcore/base:latest`
-- Contain **[GeneSplicer](https://ccb.jhu.edu/software/genesplicer/)** 1.0
-- Contain **[VEP](https://github.com/Ensembl/ensembl-vep)** 95.2
-- Contain cache for `GRCh37`, `GRCh38`, `GRCm38` or `CanFam3.1`
 
 ## Using helper script
 
@@ -67,11 +55,6 @@ Default:`ALL`
 
 Specify which release to pull or build: any tagged release, or `dev`.
 Default:`dev`
-
-### Genome: -g
-
-Specify which release genome to use for annotation containers (`sareksnpeff`, `sarekvep`): `smallGRCh37`, `GRCh37`, `GRCh38`, `GRCm38` or `CanFam3.1`.
-Default:`smallGRCh37`
 
 ### Singularity
 
