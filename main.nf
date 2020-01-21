@@ -47,22 +47,15 @@ def helpMessage() {
         --noGVCF                    No g.vcf output from HaplotypeCaller
         --targetBED                 Target BED file for targeted or whole exome sequencing
         --step                      Specify starting step
-                                    Available: Mapping, Recalibrate, VariantCalling, Annotate
+                                    Available: Mapping, Recalibrate, VariantCalling, CNNfilter
                                     Default: Mapping
         --tools                     Specify tools to use for variant calling:
                                     Available: HaplotypeCaller
-                                    and/or for annotation:
-                                    snpEff, VEP, merge
                                     Default: None
         --skipQC                    Specify which QC tools to skip when running Sarek
                                     Available: all, bamQC, BCFtools, FastQC, MultiQC, samtools, vcftools, versions
                                     Default: None
-        --annotateTools             Specify from which tools to look for VCF files to annotate, only for step annotate
-                                    Available: HaplotypeCaller
-                                    Default: None
-        --annotation_cache          Enable the use of cache for annotation, to be used with --snpEff_cache and/or --vep_cache
-        --snpEff_cache              Specity the path to snpEff cache, to be used with --annotation_cache
-        --vep_cache                 Specity the path to VEP cache, to be used with --annotation_cache
+
 
     References                      If not specified in the configuration file or you wish to overwrite any of the references.
         --bwaIndex                  bwa indexes
@@ -126,9 +119,6 @@ skipQClist = defineSkipQClist()
 skipQC = params.skipQC ? params.skipQC == 'all' ? skipQClist : params.skipQC.split(',').collect{it.trim().toLowerCase()} : []
 if (!checkParameterList(skipQC, skipQClist)) exit 1, 'Unknown QC tool(s), see --help for more information'
 
-annoList = defineAnnoList()
-annotateTools = params.annotateTools ? params.annotateTools.split(',').collect{it.trim().toLowerCase()} : []
-if (!checkParameterList(annotateTools,annoList)) exit 1, 'Unknown tool(s) to annotate, see --help for more information'
 
 // Initialize each params in params.genomes, catch the command line first if it was defined
 // params.fasta has to be the first one
@@ -186,7 +176,7 @@ if (tsvPath) {
         case 'mapping': inputSample = extractFastq(tsvFile); break
         case 'recalibrate': inputSample = extractRecal(tsvFile); break
         case 'variantcalling': inputSample = extractBam(tsvFile); break
-        case 'annotate': break
+        case 'CNNfilter' : inputSample = extractBam(tsvFile); break
         default: exit 1, "Unknown step ${step}"
     }
 } else if (params.input && !hasExtension(params.input, "tsv")) {
@@ -199,9 +189,7 @@ if (tsvPath) {
         if (it.size() == 0) exit 1, "No FASTQ files found in --input directory '${params.input}'"
     }
     tsvFile = params.input  // used in the reports
-} else if (step == 'annotate') {
-    println "Annotating ${tsvFile}"
-} else exit 1, 'No sample were defined, see --help'
+}  else exit 1, 'No sample were defined, see --help'
 
 (genderMap, statusMap, inputSample) = extractInfos(inputSample)
 /*
@@ -216,10 +204,10 @@ ch_acLociGC = params.acLociGC && 'ascat' in tools ? Channel.value(file(params.ac
 ch_chrDir = params.chrDir && 'controlfreec' in tools ? Channel.value(file(params.chrDir)) : "null"
 ch_chrLength = params.chrLength && 'controlfreec' in tools ? Channel.value(file(params.chrLength)) : "null"
 ch_dbsnp = params.dbsnp && ('mapping' in step || 'controlfreec' in tools || 'haplotypecaller' in tools || 'mutect2' in tools) ? Channel.value(file(params.dbsnp)) : "null"
-ch_fasta = params.fasta && !('annotate' in step) ? Channel.value(file(params.fasta)) : "null"
-ch_fastaFai = params.fastaFai && !('annotate' in step) ? Channel.value(file(params.fastaFai)) : "null"
+ch_fasta = params.fasta  ? Channel.value(file(params.fasta)) : "null"
+ch_fastaFai = params.fastaFai  ? Channel.value(file(params.fastaFai)) : "null"
 ch_germlineResource = params.germlineResource && 'mutect2' in tools ? Channel.value(file(params.germlineResource)) : "null"
-ch_intervals = params.intervals && !('annotate' in step) ? Channel.value(file(params.intervals)) : "null"
+ch_intervals = params.intervals  ? Channel.value(file(params.intervals)) : "null"
 
 // knownIndels is currently a list of file for smallGRCh37, so transform it in a channel
 li_knownIndels = []
@@ -285,8 +273,7 @@ if (params.dbsnp)                 summary['dbsnp']                 = params.dbsn
 if (params.dbsnpIndex)            summary['dbsnpIndex']            = params.dbsnpIndex
 if (params.knownIndels)           summary['knownIndels']           = params.knownIndels
 if (params.knownIndelsIndex)      summary['knownIndelsIndex']      = params.knownIndelsIndex
-if (params.snpeffDb)              summary['snpeffDb']              = params.snpeffDb
-if (params.vepCacheVersion)       summary['vepCacheVersion']       = params.vepCacheVersion
+
 
 if (workflow.profile == 'awsbatch') {
     summary['AWS Region']        = params.awsregion
@@ -332,9 +319,6 @@ process GetSoftwareVersions {
     R --version &> v_r.txt  || true
     # R -e "library(ASCAT); help(package='ASCAT')" &> v_ascat.txt
     samtools --version &> v_samtools.txt 2>&1 || true
-    vcftools --version &> v_vcftools.txt 2>&1 || true
-    vep --help &> v_vep.txt 2>&1 || true
-
     scrape_software_versions.py &> software_versions_mqc.yaml
     """
 }
@@ -379,7 +363,7 @@ process BuildDict {
   output:
     file("${fasta.baseName}.dict") into dictBuilt
 
-  when: !(params.dict) && params.fasta && !('annotate' in step)
+  when: !(params.dict) && params.fasta 
 
   script:
   """
@@ -402,7 +386,7 @@ process BuildFastaFai {
   output:
     file("${fasta}.fai") into fastaFaiBuilt
 
-  when: !(params.fastaFai) && params.fasta && !('annotate' in step)
+  when: !(params.fastaFai) && params.fasta 
 
   script:
   """
@@ -814,7 +798,8 @@ process GatherBQSRReports {
     """
 }
 
-// Create TSV files to restart from this step
+// Create TSV files to restart from this step [These two only output TSV file]
+// Maybe it's even worth it to remove one of the two to save space
 recalTableTSV.map { idPatient, idSample, bam, bai, recalTable ->
     status = statusMap[idPatient, idSample]
     gender = genderMap[idPatient]
@@ -1120,257 +1105,6 @@ vcfGenotypeGVCFs = vcfGenotypeGVCFs.groupTuple(by:[0, 1, 2])
 */
 
 
-/*
-================================================================================
-                                   ANNOTATION
-================================================================================
-*/
-/*
-if (step == 'annotate') {
-    vcfToAnnotate = Channel.create()
-    vcfNoAnnotate = Channel.create()
-
-    if (tsvPath == []) {
-    // Sarek, by default, annotates all available vcfs that it can find in the VariantCalling directory
-    // Excluding vcfs from FreeBayes, and g.vcf from HaplotypeCaller
-    // Basically it's: VariantCalling/*./{HaplotypeCaller,Manta,Mutect2,Strelka,TIDDIT}/*.vcf.gz
-    // Without *SmallIndels.vcf.gz from Manta, and *.genome.vcf.gz from Strelka
-    // The small snippet `vcf.minus(vcf.fileName)[-2]` catches idSample
-    // This field is used to output final annotated VCFs in the correct directory
-      Channel.empty().mix(
-        Channel.fromPath("${params.outdir}/VariantCalling/*./HaplotypeCaller/*.vcf.gz")
-          .flatten().map{vcf -> ['haplotypecaller', vcf.minus(vcf.fileName)[-2].toString(), vcf]}
-      ).choice(vcfToAnnotate, vcfNoAnnotate) {
-        annotateTools == [] || (annotateTools != [] && it[0] in annotateTools) ? 0 : 1
-      }
-    } else if (annotateTools == []) {
-    // Annotate user-submitted VCFs
-    // If user-submitted, Sarek assume that the idSample should be assumed automatically
-      vcfToAnnotate = Channel.fromPath(tsvPath)
-        .map{vcf -> ['userspecified', vcf.minus(vcf.fileName)[-2].toString(), vcf]}
-    } else exit 1, "specify only tools or files to annotate, not both"
-
-    vcfNoAnnotate.close()
-    vcfAnnotation = vcfAnnotation.mix(vcfToAnnotate)
-}
-
-// as now have the list of VCFs to annotate, the first step is to annotate with allele frequencies, if there are any
-
-//(vcfSnpeff, vcfVep) = vcfAnnotation.into(2)
-
-vcfVep = vcfVep.map {
-  variantCaller, idSample, vcf ->
-  [variantCaller, idSample, vcf, null]
-}
-
-// STEP SNPEFF
-
-process Snpeff {
-    tag {"${idSample} - ${variantCaller} - ${vcf}"}
-
-    publishDir params.outdir, mode: params.publishDirMode, saveAs: {
-        if (it == "${reducedVCF}_snpEff.ann.vcf") null
-        else "Reports/${idSample}/snpEff/${it}"
-    }
-
-    input:
-        set variantCaller, idSample, file(vcf) from vcfSnpeff
-        file(dataDir) from ch_snpEff_cache
-        val snpeffDb from ch_snpeffDb
-
-    output:
-        set file("${reducedVCF}_snpEff.txt"), file("${reducedVCF}_snpEff.html"), file("${reducedVCF}_snpEff.csv") into snpeffReport
-        set variantCaller, idSample, file("${reducedVCF}_snpEff.ann.vcf") into snpeffVCF
-
-    when: 'snpeff' in tools || 'merge' in tools
-
-    script:
-    reducedVCF = reduceVCF(vcf.fileName)
-    cache = (params.snpEff_cache && params.annotation_cache) ? "-dataDir \${PWD}/${dataDir}" : ""
-    """
-    snpEff -Xmx${task.memory.toGiga()}g \
-        ${snpeffDb} \
-        -csvStats ${reducedVCF}_snpEff.csv \
-        -nodownload \
-        ${cache} \
-        -canon \
-        -v \
-        ${vcf} \
-        > ${reducedVCF}_snpEff.ann.vcf
-
-    mv snpEff_summary.html ${reducedVCF}_snpEff.html
-    mv ${reducedVCF}_snpEff.genes.txt ${reducedVCF}_snpEff.txt
-    """
-}
-
-snpeffReport = snpeffReport.dump(tag:'snpEff report')
-
-// STEP COMPRESS AND INDEX VCF.1 - SNPEFF
-
-process CompressVCFsnpEff {
-    tag {"${idSample} - ${vcf}"}
-
-    publishDir "${params.outdir}/Annotation/${idSample}/snpEff", mode: params.publishDirMode
-
-    input:
-        set variantCaller, idSample, file(vcf) from snpeffVCF
-
-    output:
-        set variantCaller, idSample, file("*.vcf.gz"), file("*.vcf.gz.tbi") into (compressVCFsnpEffOut)
-
-    script:
-    """
-    bgzip < ${vcf} > ${vcf}.gz
-    tabix ${vcf}.gz
-    """
-}
-
-compressVCFsnpEffOut = compressVCFsnpEffOut.dump(tag:'VCF')
-
-// STEP VEP.1
-
-process VEP {
-    label 'VEP'
-    label 'cpus_4'
-
-    tag {"${idSample} - ${variantCaller} - ${vcf}"}
-
-    publishDir params.outdir, mode: params.publishDirMode, saveAs: {
-        if (it == "${reducedVCF}_VEP.summary.html") "Reports/${idSample}/VEP/${it}"
-        else null
-    }
-
-    input:
-        set variantCaller, idSample, file(vcf), file(idx) from vcfVep
-        file(dataDir) from ch_vep_cache
-        val cache_version from ch_vepCacheVersion
-        file(cadd_InDels) from ch_cadd_InDels
-        file(cadd_InDels_tbi) from ch_cadd_InDels_tbi
-        file(cadd_WG_SNVs) from ch_cadd_WG_SNVs
-        file(cadd_WG_SNVs_tbi) from ch_cadd_WG_SNVs_tbi
-
-    output:
-        set variantCaller, idSample, file("${reducedVCF}_VEP.ann.vcf") into vepVCF
-        file("${reducedVCF}_VEP.summary.html") into vepReport
-
-    when: 'vep' in tools
-
-    script:
-    reducedVCF = reduceVCF(vcf.fileName)
-    genome = params.genome == 'smallGRCh37' ? 'GRCh37' : params.genome
-    dir_cache = (params.vep_cache && params.annotation_cache) ? " \${PWD}/${dataDir}" : "/.vep"
-    cadd = (params.cadd_cache && params.cadd_WG_SNVs && params.cadd_InDels) ? "--plugin CADD,whole_genome_SNVs.tsv.gz,InDels.tsv.gz" : ""
-    genesplicer = params.genesplicer ? "--plugin GeneSplicer,/opt/conda/envs/nf-core-sarek-${workflow.manifest.version}/bin/genesplicer,/opt/conda/envs/nf-core-sarek-${workflow.manifest.version}/share/genesplicer-1.0-1/human,context=200,tmpdir=\$PWD/${reducedVCF}" : "--offline"
-    """
-    mkdir ${reducedVCF}
-
-    vep \
-        -i ${vcf} \
-        -o ${reducedVCF}_VEP.ann.vcf \
-        --assembly ${genome} \
-        ${cadd} \
-        ${genesplicer} \
-        --cache \
-        --cache_version ${cache_version} \
-        --dir_cache ${dir_cache} \
-        --everything \
-        --filter_common \
-        --fork ${task.cpus} \
-        --format vcf \
-        --per_gene \
-        --stats_file ${reducedVCF}_VEP.summary.html \
-        --total_length \
-        --vcf
-
-    rm -rf ${reducedVCF}
-    """
-}
-
-vepReport = vepReport.dump(tag:'VEP')
-
-// STEP VEP.2 - VEP AFTER SNPEFF
-
-process VEPmerge {
-    label 'VEP'
-    label 'cpus_4'
-
-    tag {"${idSample} - ${variantCaller} - ${vcf}"}
-
-    publishDir params.outdir, mode: params.publishDirMode, saveAs: {
-        if (it == "${reducedVCF}_VEP.summary.html") "Reports/${idSample}/VEP/${it}"
-        else null
-    }
-
-    input:
-        set variantCaller, idSample, file(vcf), file(idx) from compressVCFsnpEffOut
-        file(dataDir) from ch_vep_cache
-        val cache_version from ch_vepCacheVersion
-        file(cadd_InDels) from ch_cadd_InDels
-        file(cadd_InDels_tbi) from ch_cadd_InDels_tbi
-        file(cadd_WG_SNVs) from ch_cadd_WG_SNVs
-        file(cadd_WG_SNVs_tbi) from ch_cadd_WG_SNVs_tbi
-
-    output:
-        set variantCaller, idSample, file("${reducedVCF}_VEP.ann.vcf") into vepVCFmerge
-        file("${reducedVCF}_VEP.summary.html") into vepReportMerge
-
-    when: 'merge' in tools
-
-    script:
-    reducedVCF = reduceVCF(vcf.fileName)
-    genome = params.genome == 'smallGRCh37' ? 'GRCh37' : params.genome
-    dir_cache = (params.vep_cache && params.annotation_cache) ? " \${PWD}/${dataDir}" : "/.vep"
-    cadd = (params.cadd_cache && params.cadd_WG_SNVs && params.cadd_InDels) ? "--plugin CADD,whole_genome_SNVs.tsv.gz,InDels.tsv.gz" : ""
-    genesplicer = params.genesplicer ? "--plugin GeneSplicer,/opt/conda/envs/nf-core-sarek-${workflow.manifest.version}/bin/genesplicer,/opt/conda/envs/nf-core-sarek-${workflow.manifest.version}/share/genesplicer-1.0-1/human,context=200,tmpdir=\$PWD/${reducedVCF}" : "--offline"
-    """
-    mkdir ${reducedVCF}
-
-    vep \
-        -i ${vcf} \
-        -o ${reducedVCF}_VEP.ann.vcf \
-        --assembly ${genome} \
-        ${cadd} \
-        ${genesplicer} \
-        --cache \
-        --cache_version ${cache_version} \
-        --dir_cache ${dir_cache} \
-        --everything \
-        --filter_common \
-        --fork ${task.cpus} \
-        --format vcf \
-        --per_gene \
-        --stats_file ${reducedVCF}_VEP.summary.html \
-        --total_length \
-        --vcf
-
-    rm -rf ${reducedVCF}
-    """
-}
-
-vepReportMerge = vepReportMerge.dump(tag:'VEP')
-
-vcfCompressVCFvep = vepVCF.mix(vepVCFmerge)
-// STEP COMPRESS AND INDEX VCF.2 - VEP
-
-process CompressVCFvep {
-    tag {"${idSample} - ${vcf}"}
-
-    publishDir "${params.outdir}/Annotation/${idSample}/VEP", mode: params.publishDirMode
-
-    input:
-        set variantCaller, idSample, file(vcf) from vcfCompressVCFvep
-
-    output:
-        set variantCaller, idSample, file("*.vcf.gz"), file("*.vcf.gz.tbi") into compressVCFOutVEP
-
-    script:
-    """
-    bgzip < ${vcf} > ${vcf}.gz
-    tabix ${vcf}.gz
-    """
-}
-
-compressVCFOutVEP = compressVCFOutVEP.dump(tag:'VCF')
 
 /*
 ================================================================================
@@ -1390,7 +1124,7 @@ process MultiQC {
         file ('FastQC/*') from fastQCReport.collect().ifEmpty([])
         file ('MarkDuplicates/*') from markDuplicatesReport.collect().ifEmpty([])
         file ('SamToolsStats/*') from samtoolsStatsReport.collect().ifEmpty([])
-        //file ('snpEff/*') from snpeffReport.collect().ifEmpty([])
+        
 
     output:
         set file("*multiqc_report.html"), file("*multiqc_data") into multiQCOut
