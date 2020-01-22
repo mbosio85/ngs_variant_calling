@@ -22,5 +22,6 @@ dependencies:
   - snpeff=4.3.1t
   - vcfanno=0.3.1
   - vcftools=0.1.16
+  - gatktool=0.0.1
 
 
