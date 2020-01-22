@@ -416,7 +416,7 @@ process BuildDbsnpIndex {
   output:
     file("${dbsnp}.tbi") into dbsnpIndexBuilt
 
-  when: !(params.dbsnpIndex) && params.dbsnp && ('mapping' in step || 'controlfreec' in tools || 'haplotypecaller' in tools || 'mutect2' in tools)
+  when: !(params.dbsnpIndex) && params.dbsnp && ('mapping' in step || 'haplotypecaller' in tools )
   script:
   """
   tabix -p vcf ${dbsnp}
@@ -998,7 +998,7 @@ bamHaplotypeCaller = bamRecalAllTemp.combine(intHaplotypeCaller)
  It outputs g.vcf files */
 process HaplotypeCaller {
     label 'memory_singleCPU_task_sq'
-    label 'cpus_2'
+    label 'cpus_1'
 
     tag {idSample + "-" + intervalBed.baseName}
 
@@ -1019,7 +1019,7 @@ process HaplotypeCaller {
 
     script:
     """
-    gatk --java-options "-Xmx${task.memory.toGiga()}g -Xms6000m -XX:GCTimeLimit=50 -XX:GCHeapFreeLimit=10" \
+    gatk --java-options "-Xmx${task.memory.toGiga()}g -Xms1000m -XX:GCTimeLimit=50 -XX:GCHeapFreeLimit=10" \
         HaplotypeCaller \
         -R ${fasta} \
         -I ${bam} \
@@ -1027,7 +1027,11 @@ process HaplotypeCaller {
         -D ${dbsnp} \
         -O ${intervalBed.baseName}_${idSample}.g.vcf \
         -bamout ${intervalBed.baseName}_${idSample}.bam \
-        -ERC GVCF
+        -ERC GVCF \
+        --native-pair-hmm-threads ${task.cpus} \
+        --use-jdk-deflater \
+        --use-jdk-inflater \
+
     """
 }
 
@@ -1106,7 +1110,7 @@ process GenotypeGVCFs {
         -R ${fasta} \
         -D ${dbsnp} \
         -V ${gvcf} \
-         -L ${intervalBed} \
+        -L ${intervalBed} \
         -O ${intervalBed.baseName}_${idSample}.vcf
     """
 }
@@ -1117,8 +1121,11 @@ vcfGenotypeVCFs = vcfGenotypeVCFs.groupTuple(by:[0, 1, 2])
 
 process CNN_scoring {
     label 'memory_singleCPU_task_sq'
-    label 'cpus_8'
-    
+    label 'cpus_1'
+    label 'CNN'
+    container 'broadinstitute/gatk:4.1.4.1'
+
+
     tag {idSample + "CNN-" + intervalBed.baseName}
 
     input:
@@ -1139,19 +1146,18 @@ process CNN_scoring {
     // Using -L is important for speed and we have to index the interval files also
     """
     gatk --java-options -Xmx${task.memory.toGiga()}g \
-        IndexFeatureFile -F ${vcf}
+        IndexFeatureFile -I ${vcf}
 
     gatk --java-options -Xmx${task.memory.toGiga()}g \
         CNNScoreVariants \
         -R ${fasta} \
         -V ${vcf} \
         -L ${intervalBed} \
-        -O ${intervalBed.baseName}_${idSample}.cnn_annotated.vcf.gz
+        -O ${intervalBed.baseName}_${idSample}.cnn_annotated.vcf.gz \
         -I ${bam} \
-        --architecture CNN_2D \
-        --tensor_type read_tensor \
-        --transfer-batch-size 32
-        --inference-batch-size 8 
+        --tensor-type read_tensor \
+        --transfer-batch-size 32 \
+        --inference-batch-size 8 \
         --intra-op-threads 0 \
         --inter-op-threads ${task.cpus} \
     """
@@ -1162,7 +1168,7 @@ vcfCNNvcfs = vcfCNNvcfs.groupTuple(by:[0, 1, 2])
 process ConcatCNNVCF {
     label 'cpus_8'
     tag {idSample + "CNN_concat-" + name }
-
+    
     input:
         set idPatient, idSample, file(cnnFile) from vcfCNNvcfs
         file(fastaFai) from ch_fastaFai
@@ -1186,10 +1192,15 @@ process ConcatCNNVCF {
 //Now score the variants using the CNN model 
 // Details from : https://github.com/gatk-workflows/gatk4-cnn-variant-filter/
 
-process FilterVariantTrances{
+process CNNFilterVariantTrances{
     label 'cpus_8'
-        tag {variantCaller + "CNN_Filter-" + idSample}
-        publishDir "${params.outdir}/VariantCalling/${idSample}/CNNFiltering/", mode: params.publishDirMode
+    label 'CNN'
+    container 'broadinstitute/gatk:4.1.4.1'
+
+    tag {variantCaller + "CNN_Filter-" + idSample}
+
+
+    publishDir "${params.outdir}/VariantCalling/${idSample}/CNNFiltering/", mode: params.publishDirMode
                 
     input :
         file(vcf) from concatCNNvcf
@@ -1213,7 +1224,7 @@ process FilterVariantTrances{
         script:
         """
             gatk --java-options -Xmx${task.memory.toGiga()}g \
-        IndexFeatureFile -F ${vcf}
+        IndexFeatureFile -I ${vcf}
 
 
         gatk --java-options "-Xmx${task.memory.toGiga}g" \
@@ -1264,17 +1275,17 @@ process MultiQC {
         file ('FastQC/*') from fastQCReport.collect().ifEmpty([])
         file ('MarkDuplicates/*') from markDuplicatesReport.collect().ifEmpty([])
         file ('SamToolsStats/*') from samtoolsStatsReport.collect().ifEmpty([])
-        
+        val custom_runName from custom_runName
 
     output:
-        set file("${params.name}/*multiqc_report.html"), file("${params.name}/*multiqc_data") into multiQCOut
+        set file("${custom_runName}/*multiqc_report.html"), file("${custom_runName}/*multiqc_data") into multiQCOut
 
     when: !('multiqc' in skipQC)
 
     script:
     """
-    mkdir -p ${name}
-    multiqc -f -v -outdir ${name} .
+    mkdir -p ${custom_runName}
+    multiqc -f -v -outdir ${custom_runName} .
     """
 }
 
@@ -1522,7 +1533,6 @@ def defineSkipQClist() {
 // Define list of available step
 def defineStepList() {
     return [
-        'annotate',
         'mapping',
         'recalibrate',
         'variantcalling'
@@ -1532,11 +1542,7 @@ def defineStepList() {
 // Define list of available tools
 def defineToolList() {
     return [
-        'freebayes',
-        'haplotypecaller',
-        'merge',
-        'snpeff',
-        'vep'
+        'haplotypecaller'
     ]
 }
 
