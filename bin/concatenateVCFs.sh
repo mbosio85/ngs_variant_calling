@@ -30,6 +30,12 @@ do
 			shift # past argument
 	    shift # past value
 			;;
+                -g)
+                        gzipped="1"
+            #            shift # past argument  # Commented because this is boolean
+            shift # past value
+                        ;;
+
 		*)
 			usage
 			shift # past argument
@@ -40,10 +46,33 @@ done
 if [ -z ${genomeIndex} ]; then echo "Missing index file "; usage; fi
 if [ -z ${cpus} ]; then echo "No CPUs defined: setting to 1"; cpus=1; fi
 if [ -z ${outputFile} ]; then echo "Missing output file name"; usage; fi
+if [ -z ${gzipped} ]; then echo "No Gzipped flag setting to uncompressed"; gzipped="0"; fi
+
+
 
 # First make a header from one of the VCF
 # Remove interval information from the GATK command-line, but leave the rest
-FIRSTVCF=$(ls *.vcf | head -n 1)
+if [ "$gzipped" == "1" ]; then
+   CONTIGS=($(cut -f1 ${genomeIndex}))
+   # listing the gvcf in order 
+   echo 'indexing all vcf.gz'
+   for chr in "${CONTIGS[@]}"; do
+        pattern="${chr}_*.vcf.gz"
+	if ! compgen -G "${pattern}" > /dev/null; then continue; fi
+	for vcf in $(ls -v ${pattern}); do
+	    #index them 
+	    tabix -f $vcf
+	    #add them to the bottom 
+	    echo $vcf >> vcf.list
+         done
+    done
+  # concat with bcftools
+  echo 'concatenating' 
+  bcftools concat --file-list vcf.list --output rawcalls.vcf.gz --threads $cpus
+  tabix rawcalls.vcf.gz
+else
+   FIRSTVCF=$(ls *.vcf | head -n 1)
+
 sed -n '/^[^#]/q;p' $FIRSTVCF | \
 awk '!/GATKCommandLine/{print}/GATKCommandLine/{for(i=1;i<=NF;i++){if($i!~/intervals=/ && $i !~ /out=/){printf("%s ",$i)}}printf("\n")}' \
 > header
@@ -80,6 +109,7 @@ CONTIGS=($(cut -f1 ${genomeIndex}))
   done
 ) | bgzip -@${cpus} > rawcalls.vcf.gz
 tabix rawcalls.vcf.gz
+fi 
 
 set +u
 
