@@ -46,8 +46,6 @@ done
 if [ -z ${genomeIndex} ]; then echo "Missing index file "; usage; fi
 if [ -z ${cpus} ]; then echo "No CPUs defined: setting to 1"; cpus=1; fi
 if [ -z ${outputFile} ]; then echo "Missing output file name"; usage; fi
-
-echo $gzipped
 if [ -z ${gzipped} ]; then echo "No Gzipped flag setting to uncompressed"; gzipped="0"; fi
 
 
