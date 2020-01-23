@@ -1162,7 +1162,16 @@ process CNN_scoring {
         --inter-op-threads ${task.cpus} \
     """
 }
-vcfCNNvcfs = vcfCNNvcfs.groupTuple(by:[0, 1, 2])
+
+//add text to the channel so that afterwards it's flattened and 
+// merged properly for ConcatCNNVCF
+vcfCNNvcfs_to_merge = vcfCNNvcfs.map {
+    idPatient, idSample, idVcf ->
+    ['CNNvcf',idPatient, idSample, idVcf]
+}
+
+
+vcfCNNvcfs_to_merge = vcfCNNvcfs_to_merge.groupTuple(by:[0, 1, 2])
 
 //concatenate the VCFs from the single intervals
 process ConcatCNNVCF {
@@ -1170,13 +1179,14 @@ process ConcatCNNVCF {
     tag {idSample + "CNN_concat-" + name }
     
     input:
-        set idPatient, idSample, file(cnnFile) from vcfCNNvcfs
+        set step, idPatient, idSample, file(cnnFile) from vcfCNNvcfs_to_merge
         file(fastaFai) from ch_fastaFai
         file(targetBED) from ch_targetBED
 
     output:
     // we have this funny *_* pattern to avoid copying the raw calls to publishdir
-        file("HaplotypeCaller_${idSample}.vcf") into concatCNNvcf
+        set idSample, file("HaplotypeCaller_${idSample}.vcf.gz") ,
+            file("HaplotypeCaller_${idSample}.vcf.gz.tbi") into  concatCNNvcf
     
     when: ('haplotypecaller' in tools )
 
@@ -1185,7 +1195,8 @@ process ConcatCNNVCF {
     
     options = params.targetBED ? "-t ${targetBED}" : ""
     """
-    concatenateVCFs.sh -i ${fastaFai} -c ${task.cpus} -o ${outputFile} ${options}
+    concatenateVCFs.sh -i ${fastaFai} -c ${task.cpus} -o ${outputFile} ${options} -g
+    
     """
 }
 
@@ -1202,8 +1213,8 @@ process CNNFilterVariantTrances{
 
     publishDir "${params.outdir}/VariantCalling/${idSample}/CNNFiltering/", mode: params.publishDirMode
                 
-    input :
-        file(vcf) from concatCNNvcf
+    input:
+        set idSample, file(vcf), file(vcfIndex) from concatCNNvcf
         file(dict) from ch_dict
         file(fasta) from ch_fasta
         file(fastaFai) from ch_fastaFai
@@ -1227,14 +1238,14 @@ process CNNFilterVariantTrances{
         IndexFeatureFile -I ${vcf}
 
 
-        gatk --java-options "-Xmx${task.memory.toGiga}g" \
+        gatk --java-options "-Xmx${task.memory.toGiga()}g" \
         FilterVariantTranches \
         -V ${vcf} \
         --output HaplotypeCaller_${idSample}.CNN_filtered.vcf \
         -resource ${hapmap}   \
         -resource ${onekg}    \
         -resource ${mills}    \
-        -info-key ${info_key} \
+        -info-key CNN_2D \
         --snp-tranche 99.9    \
         --indel-tranche 99.5  \
         --dont-trim-active-regions \
@@ -1280,7 +1291,7 @@ process MultiQC {
     output:
         set file("${custom_runName}/*multiqc_report.html"), file("${custom_runName}/*multiqc_data") into multiQCOut
 
-    when: !('multiqc' in skipQC)
+    when: !('multiqc' in skipQC) || !('haplotypecaller' in tools)
 
     script:
     """
@@ -1470,7 +1481,7 @@ def checkHostname(){
 
 /*
 ================================================================================
-                                 sarek functions (imported)
+                                 pipeline functions 
 ================================================================================
 */
 
