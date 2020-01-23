@@ -1176,7 +1176,7 @@ vcfCNNvcfs_to_merge = vcfCNNvcfs_to_merge.groupTuple(by:[0, 1, 2])
 //concatenate the VCFs from the single intervals
 process ConcatCNNVCF {
     label 'cpus_8'
-    tag {idSample + "CNN_concat-" + name }
+    tag {idSample + "CNN_concat-"  }
     
     input:
         set step, idPatient, idSample, file(cnnFile) from vcfCNNvcfs_to_merge
@@ -1237,7 +1237,7 @@ process CNNFilterVariantTrances{
             gatk --java-options -Xmx${task.memory.toGiga()}g \
         IndexFeatureFile -I ${vcf}
 
-
+        # from https://gatk.broadinstitute.org/hc/en-us/articles/360037227632-FilterVariantTranches
         gatk --java-options "-Xmx${task.memory.toGiga()}g" \
         FilterVariantTranches \
         -V ${vcf} \
@@ -1247,12 +1247,8 @@ process CNNFilterVariantTrances{
         -resource ${mills}    \
         -info-key CNN_2D \
         --snp-tranche 99.9    \
-        --indel-tranche 99.5  \
-        --dont-trim-active-regions \
-        -stand-call-conf 0   \
-        -A Coverage -A ChromosomeCounts \
-        -A BaseQuality -A FragmentLength \
-        -A MappingQuality -A ReadPosition 
+        --indel-tranche 99.4  \
+  
         
 
         bgzip HaplotypeCaller_${idSample}.CNN_filtered.vcf
