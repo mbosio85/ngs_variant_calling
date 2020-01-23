@@ -4,8 +4,8 @@ set -euo pipefail
 # This script concatenates all VCF files that are in the local directory,
 # that were created from different intervals to make a single final VCF
 
-usage() { echo "Usage: $0 [-i genome_index_file] [-o output.file.no.gz.extension] <-t target.bed> <-c cpus>" 1>&2; exit 1; }
-
+usage() { echo "Usage: $0 [-i genome_index_file] [-o output.file.no.gz.extension] <-t target.bed> <-c cpus>  -g  [if gzipped]" 1>&2; exit 1; }
+gzipped="0"
 while [[ $# -gt 0 ]]
 do
   key=$1
@@ -46,6 +46,8 @@ done
 if [ -z ${genomeIndex} ]; then echo "Missing index file "; usage; fi
 if [ -z ${cpus} ]; then echo "No CPUs defined: setting to 1"; cpus=1; fi
 if [ -z ${outputFile} ]; then echo "Missing output file name"; usage; fi
+
+echo $gzipped
 if [ -z ${gzipped} ]; then echo "No Gzipped flag setting to uncompressed"; gzipped="0"; fi
 
 
@@ -68,7 +70,8 @@ if [ "$gzipped" == "1" ]; then
     done
   # concat with bcftools
   echo 'concatenating' 
-  bcftools concat --file-list vcf.list --output rawcalls.vcf.gz --threads $cpus
+  bcftools concat --file-list vcf.list --output rawcalls.vcf --threads $cpus
+  bgzip rawcalls.vcf
   tabix rawcalls.vcf.gz
 else
    FIRSTVCF=$(ls *.vcf | head -n 1)
