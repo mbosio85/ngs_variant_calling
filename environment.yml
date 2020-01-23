@@ -14,7 +14,7 @@ dependencies:
   - bwa=0.7.17
   - ensembl-vep=95.2
   - fastqc=0.11.8
-  - gatk4=4.1.2.0
+  - gatk4=4.1.4.1
   - htslib=1.9
   - multiqc=1.7
   - qualimap=2.2.2b
