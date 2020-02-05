@@ -699,9 +699,11 @@ process MarkDuplicates {
 
     publishDir params.outdir, mode: params.publishDirMode,
         saveAs: {
-            if (it == "${idSample}.bam.metrics" && 'markduplicates' in skipQC) "Reports/${idSample}/MarkDuplicates/${it}"
-            else "Preprocessing/${idSample}/DuplicateMarked/${it}"
+            /* if (it == "${idSample}.bam.metrics" && 'markduplicates' in skipQC) "Reports/${idSample}/MarkDuplicates/${it}"
+            else "Preprocessing/${idSample}/DuplicateMarked/${it}" */
+            if (it == "${idSample}.bam.metrics") "Reports/${idSample}/MarkDuplicates/${it}"
         }
+    
 
     input:
         set idPatient, idSample, file("${idSample}.bam") from mergedBam
@@ -787,7 +789,7 @@ process GatherBQSRReports {
 
     tag {idPatient + "-" + idSample}
 
-    publishDir "${params.outdir}/Preprocessing/${idSample}/DuplicateMarked", mode: params.publishDirMode, overwrite: false
+    //publishDir "${params.outdir}/Preprocessing/${idSample}/DuplicateMarked", mode: params.publishDirMode, overwrite: false
 
     input:
         set idPatient, idSample, file(recal) from tableGatherBQSRReports
