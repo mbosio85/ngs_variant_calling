@@ -1294,7 +1294,7 @@ process MultiQC {
     script:
     """
     mkdir -p ${custom_runName}
-    multiqc -f -v -outdir ${custom_runName} .
+    multiqc -f -v --outdir ${custom_runName} .
     """
 }
 
